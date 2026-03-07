@@ -23,39 +23,68 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# ==================== EGX 30 & 70 STOCKS ====================
+# ==================== EGX 30 STOCKS ====================
 EGX30_STOCKS = {
-    "COMI": "CIB - البنك التجاري الدولي",
-    "HRHO": "هيرميس",
-    "ETEL": "المصرية للاتصالات",
-    "OCDI": "أوراسكوم للإنشاء",
-    "SWDY": "السويدي إليكتريك",
-    "ESRS": "عز للصلب",
-    "ABUK": "أبو قير للأسمدة",
-    "EAST": "إيسترن",
-    "MNHD": "مدينة نصر للإسكان",
-    "SKPC": "سيدي كرير للبتروكيماويات",
-    "AMOC": "مصر لتكرير البترول",
-    "PHDC": "بالم هيلز",
-    "CLHO": "سيتي إيدج",
-    "JUFO": "جهينة",
-    "EGCH": "إيجيكم",
+    "COMI":  "CIB - البنك التجاري الدولي",
+    "SWDY":  "السويدي إليكتريك",
+    "TMGH":  "طلعت مصطفى",
+    "ETEL":  "المصرية للاتصالات",
+    "EAST":  "إيسترن كومباني",
+    "EGAL":  "مصر للألومنيوم",
+    "ABUK":  "أبو قير للأسمدة",
+    "QNBE":  "بنك قطر الوطني",
+    "ALCN":  "الإسكندرية للحاويات",
+    "EFIH":  "إي-فاينانس",
+    "FWRY":  "فوري",
+    "HDBK":  "بنك الإسكان والتعمير",
+    "ORAS":  "أوراسكوم للإنشاء",
+    "EMFD":  "إعمار مصر",
+    "ADIB":  "بنك أبو ظبي الإسلامي",
+    "HRHO":  "EFG هيرميس",
+    "JUFO":  "جهينة",
+    "IRON":  "الحديد والصلب المصرية",
+    "FERC":  "فيركيم مصر",
+    "GBCO":  "GB كورب",
+    "OCDI":  "سوديك",
+    "EGCH":  "الصناعات الكيماوية المصرية",
+    "PHDC":  "بالم هيلز",
+    "CIEB":  "كريدي أجريكول مصر",
+    "ORHD":  "أوراسكوم للتطوير",
 }
 
+# ==================== EGX 70 STOCKS ====================
 EGX70_STOCKS = {
-    "AMER": "أمر جروب",
-    "BMRA": "بيتا إيجيبت",
-    "BTFN": "بنك الاستثمار",
-    "EKHO": "إيكو للتطوير",
-    "GTHE": "جي تي إتش",
-    "HELI": "هيليوبوليس",
-    "ISPH": "آيزيس",
-    "KABO": "كابو",
-    "MFPC": "مصر للمستحضرات",
-    "OFMD": "أوفمد",
+    "VLMR":  "فالمور هولدينج",
+    "EFID":  "إيديتا للصناعات الغذائية",
+    "BTFH":  "بلتون هولدينج",
+    "FAIT":  "بنك فيصل الإسلامي",
+    "CANA":  "بنك قناة السويس",
+    "SCTS":  "قناة السويس للتكنولوجيا",
+    "RAYA":  "راية هولدينج",
+    "MFPC":  "مصر للأسمدة",
+    "ESRS":  "عز للصلب",
+    "MNHD":  "مدينة نصر للإسكان",
+    "SKPC":  "سيدي كرير للبتروكيماويات",
+    "AMOC":  "مصر لتكرير البترول",
+    "CLHO":  "سيتي إيدج",
+    "AMER":  "أمر جروب",
+    "GTHE":  "جي تي إتش",
+    "HELI":  "هيليوبوليس",
+    "ISPH":  "آيزيس فارما",
+    "BMRA":  "بيتا إيجيبت",
+    "EKHO":  "إيكو للتطوير",
+    "ORWE":  "أوريدو مصر",
+    "MENA":  "ميدكلينيك الشرق الأوسط",
+    "POUL":  "كايرو بولتري",
+    "HELI":  "هيليوبوليس للإسكان",
+    "MACT":  "مصر للاتصالات الدولية",
+    "OFMD":  "أوفمد",
 }
 
 ALL_STOCKS = {**EGX30_STOCKS, **EGX70_STOCKS}
+
+# EGX 100 = EGX 30 + EGX 70
+EGX100_STOCKS = ALL_STOCKS
 
 
 # ==================== TECHNICAL INDICATORS ====================
@@ -340,13 +369,15 @@ Bollinger: أعلى={data['bb_upper']} | أدنى={data['bb_lower']}
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome = """🏦 *أهلاً في بوت البورصة المصرية!*
 
-أنا بحلل أسهم EGX 30 و EGX 70 بمؤشرات فنية حقيقية:
+أنا بحلل أسهم EGX 30 و EGX 70 و EGX 100 بمؤشرات فنية حقيقية:
 📊 RSI | Moving Averages | MACD | Bollinger Bands
 
 *الأوامر:*
 /price COMI - سعر السهم
 /analyze COMI - تحليل فني كامل + AI
 /egx30 - أسعار EGX 30
+/egx70 - أسعار EGX 70
+/egx100 - أسعار EGX 100
 /watchlist - قائمة المتابعة
 /add COMI - أضف للمتابعة
 /remove COMI - احذف من المتابعة
@@ -441,11 +472,9 @@ async def analyze_stock(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await msg.edit_text(text, parse_mode="Markdown")
 
 
-async def egx30_prices(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg = await update.message.reply_text("⏳ بجيب أسعار EGX 30 + إشارات...")
-
+async def show_index_prices(msg, stocks_dict: dict, index_name: str):
     results = []
-    for symbol in list(EGX30_STOCKS.keys())[:8]:
+    for symbol in list(stocks_dict.keys())[:10]:
         data = await get_stock_data(symbol)
         if "error" not in data:
             signal = calculate_signal(data)
@@ -453,16 +482,28 @@ async def egx30_prices(update: Update, context: ContextTypes.DEFAULT_TYPE):
             results.append(
                 f"{change_emoji} *{symbol}* - {data['price']:.2f} EGP ({data['change_pct']:+.2f}%) {signal['emoji']}"
             )
-
     if not results:
         await msg.edit_text("❌ مش قادر أجيب الأسعار دلوقتي.")
         return
-
-    text = f"📊 *أسعار EGX 30* 🕐 {datetime.now().strftime('%H:%M')}\n\n"
+    text = f"📊 *أسعار {index_name}* 🕐 {datetime.now().strftime('%H:%M')}\n\n"
     text += "\n".join(results)
     text += "\n\n🟢شراء 🟡انتظار 🔴بيع\n_للتحليل: /analyze SYMBOL_"
-
     await msg.edit_text(text, parse_mode="Markdown")
+
+
+async def egx30_prices(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = await update.message.reply_text("⏳ بجيب أسعار EGX 30...")
+    await show_index_prices(msg, EGX30_STOCKS, "EGX 30")
+
+
+async def egx70_prices(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = await update.message.reply_text("⏳ بجيب أسعار EGX 70...")
+    await show_index_prices(msg, EGX70_STOCKS, "EGX 70")
+
+
+async def egx100_prices(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = await update.message.reply_text("⏳ بجيب أسعار EGX 100...")
+    await show_index_prices(msg, EGX100_STOCKS, "EGX 100")
 
 
 async def watchlist(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -617,6 +658,8 @@ def main():
     app.add_handler(CommandHandler("price", get_price))
     app.add_handler(CommandHandler("analyze", analyze_stock))
     app.add_handler(CommandHandler("egx30", egx30_prices))
+    app.add_handler(CommandHandler("egx70", egx70_prices))
+    app.add_handler(CommandHandler("egx100", egx100_prices))
     app.add_handler(CommandHandler("watchlist", watchlist))
     app.add_handler(CommandHandler("add", add_to_watchlist))
     app.add_handler(CommandHandler("remove", remove_from_watchlist))
