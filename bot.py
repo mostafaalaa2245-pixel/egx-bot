@@ -1,4 +1,5 @@
-"""
+
+  """
 🤖 EGX Pulse Bot - Full Version v3.0
 Features: Technical Analysis + AI + Alerts + Daily Report + Portfolio + Compare + Multi-timeframe + Stop Loss/Take Profit + News
 """
@@ -8,6 +9,7 @@ import asyncio
 import logging
 from datetime import datetime, time as dtime
 import httpx
+import yfinance as yf
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (Application, CommandHandler, CallbackQueryHandler, ContextTypes)
 from openai import OpenAI
@@ -110,54 +112,97 @@ def calculate_atr(highs, lows, closes, period=14):
 # ==================== GET STOCK DATA ====================
 
 async def get_stock_data(symbol, interval="1d", range_="60d"):
+    """جيب بيانات السهم - بيحاول Yahoo Finance API الأول، لو فشل بيستخدم yfinance"""
+
+    # ترجمة interval وrange لـ yfinance
+    yf_period_map = {"60d": "3mo", "52wk": "1y", "30d": "1mo", "5d": "5d"}
+    yf_interval_map = {"1d": "1d", "1wk": "1wk", "1h": "60m"}
+    yf_period = yf_period_map.get(range_, "3mo")
+    yf_interval = yf_interval_map.get(interval, "1d")
+
+    closes, highs, lows, vols = [], [], [], []
+    price = prev_close = volume = 0
+
+    # === المحاولة الأولى: Yahoo Finance API ===
     try:
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}.CA?interval={interval}&range={range_}"
-        async with httpx.AsyncClient(timeout=15) as http:
-            r = await http.get(url, headers={"User-Agent": "Mozilla/5.0"})
-            data = r.json()
+        # جرب query1 و query2
+        for host in ["query1", "query2"]:
+            url = f"https://{host}.finance.yahoo.com/v8/finance/chart/{symbol}.CA?interval={interval}&range={range_}"
+            async with httpx.AsyncClient(timeout=12) as http:
+                r = await http.get(url, headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                    "Accept": "application/json",
+                })
+                if r.status_code != 200:
+                    continue
+                data = r.json()
 
-        result = data.get("chart", {}).get("result", [])
-        if not result:
-            return {"error": "السهم مش موجود أو السوق مقفول"}
+            result = data.get("chart", {}).get("result", [])
+            if not result:
+                continue
 
-        meta = result[0].get("meta", {})
-        quote = result[0].get("indicators", {}).get("quote", [{}])[0]
+            meta = result[0].get("meta", {})
+            quote = result[0].get("indicators", {}).get("quote", [{}])[0]
 
-        closes = [c for c in quote.get("close", []) if c is not None]
-        highs  = [h for h in quote.get("high",  []) if h is not None]
-        lows   = [l for l in quote.get("low",   []) if l is not None]
-        vols   = [v for v in quote.get("volume",[]) if v is not None]
+            closes = [c for c in quote.get("close", []) if c is not None]
+            highs  = [h for h in quote.get("high",  []) if h is not None]
+            lows   = [l for l in quote.get("low",   []) if l is not None]
+            vols   = [v for v in quote.get("volume",[]) if v is not None]
 
-        if not closes:
-            return {"error": "مفيش بيانات"}
+            if closes:
+                price      = meta.get("regularMarketPrice", closes[-1])
+                prev_close = meta.get("previousClose", closes[-2] if len(closes) > 1 else price)
+                volume     = meta.get("regularMarketVolume", vols[-1] if vols else 0)
+                break  # نجح!
+    except Exception:
+        pass  # هيكمل على yfinance
 
-        price      = meta.get("regularMarketPrice", closes[-1])
-        prev_close = meta.get("previousClose", closes[-2] if len(closes) > 1 else price)
-        change     = price - prev_close if prev_close else 0
-        change_pct = (change / prev_close * 100) if prev_close else 0
-        volume     = meta.get("regularMarketVolume", vols[-1] if vols else 0)
-        avg_vol    = int(sum(vols[-20:]) / len(vols[-20:])) if vols else 0
+    # === المحاولة الثانية: yfinance (fallback) ===
+    if not closes:
+        try:
+            ticker = yf.Ticker(f"{symbol}.CA")
+            hist = ticker.history(period=yf_period, interval=yf_interval)
 
-        macd, macd_sig, macd_hist = calculate_macd(closes)
-        bb_upper, bb_mid, bb_lower = calculate_bollinger(closes)
+            if hist.empty:
+                return {"error": f"السهم '{symbol}' مش موجود على Yahoo Finance.\nجرب: COMI, ETEL, SWDY, HRHO"}
 
-        return {
-            "symbol": symbol, "name": ALL_STOCKS.get(symbol, symbol),
-            "price": round(price, 2), "prev_close": round(prev_close, 2),
-            "change": round(change, 2), "change_pct": round(change_pct, 2),
-            "volume": volume, "avg_volume": avg_vol,
-            "volume_ratio": round(volume / avg_vol, 2) if avg_vol else 1.0,
-            "time": datetime.now().strftime("%H:%M:%S"),
-            "rsi": calculate_rsi(closes),
-            "sma20": calculate_sma(closes, 20), "sma50": calculate_sma(closes, 50),
-            "macd": macd, "macd_signal": macd_sig, "macd_hist": macd_hist,
-            "bb_upper": bb_upper, "bb_mid": bb_mid, "bb_lower": bb_lower,
-            "atr": calculate_atr(highs, lows, closes),
-            "high_period": round(max(closes), 2), "low_period": round(min(closes), 2),
-            "closes": closes,
-        }
-    except Exception as e:
-        return {"error": str(e)}
+            closes = hist["Close"].tolist()
+            highs  = hist["High"].tolist()
+            lows   = hist["Low"].tolist()
+            vols   = hist["Volume"].tolist()
+
+            price      = closes[-1]
+            prev_close = closes[-2] if len(closes) > 1 else price
+            volume     = int(vols[-1]) if vols else 0
+        except Exception as e:
+            return {"error": f"خطأ في جيب البيانات: {str(e)}"}
+
+    if not closes:
+        return {"error": "مفيش بيانات متاحة للسهم ده دلوقتي"}
+
+    # === حساب المؤشرات ===
+    change     = round(price - prev_close, 2) if prev_close else 0
+    change_pct = round((change / prev_close * 100), 2) if prev_close else 0
+    avg_vol    = int(sum(vols[-20:]) / len(vols[-20:])) if len(vols) >= 20 else (int(sum(vols) / len(vols)) if vols else 0)
+
+    macd, macd_sig, macd_hist = calculate_macd(closes)
+    bb_upper, bb_mid, bb_lower = calculate_bollinger(closes)
+
+    return {
+        "symbol": symbol, "name": ALL_STOCKS.get(symbol, symbol),
+        "price": round(price, 2), "prev_close": round(prev_close, 2),
+        "change": change, "change_pct": change_pct,
+        "volume": volume, "avg_volume": avg_vol,
+        "volume_ratio": round(volume / avg_vol, 2) if avg_vol else 1.0,
+        "time": datetime.now().strftime("%H:%M:%S"),
+        "rsi": calculate_rsi(closes),
+        "sma20": calculate_sma(closes, 20), "sma50": calculate_sma(closes, 50),
+        "macd": macd, "macd_signal": macd_sig, "macd_hist": macd_hist,
+        "bb_upper": bb_upper, "bb_mid": bb_mid, "bb_lower": bb_lower,
+        "atr": calculate_atr(highs, lows, closes),
+        "high_period": round(max(closes), 2), "low_period": round(min(closes), 2),
+        "closes": closes,
+    }
 
 
 # ==================== SIGNAL + SL/TP ====================
@@ -1062,4 +1107,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
